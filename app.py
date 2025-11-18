@@ -890,29 +890,63 @@ if page == "4️⃣ Questão 4 — Integração Numérica":
                 
                 # Calcular área da meia-seção
                 A_trap = trapezio_repetido(X, Y)
-                A_simp = simpson_repetido(X, Y)
+                
+                # Verificar se Simpson pode ser aplicado (número par de intervalos)
+                num_intervalos = len(X) - 1
+                A_simp = None
+                simpson_applicable = (num_intervalos % 2 == 0)
+                A_simp_partial = None
+                A_trap_last = None
+                
+                if simpson_applicable:
+                    A_simp = simpson_repetido(X, Y)
+                else:
+                    # Se número ímpar de intervalos, usar Simpson nos primeiros n-1 intervalos
+                    # e Trapézio no último intervalo (método híbrido)
+                    if len(X) >= 3:
+                        # Usar Simpson nos primeiros pontos (número par de intervalos)
+                        # Remover o último ponto para ter número par de intervalos
+                        X_simp = X[:-1]
+                        Y_simp = Y[:-1]
+                        A_simp_partial = simpson_repetido(X_simp, Y_simp)
+                        
+                        # Adicionar área do último trapézio
+                        if A_simp_partial is not None:
+                            h_last = X[-1] - X[-2]
+                            A_trap_last = h_last * (Y[-2] + Y[-1]) / 2
+                            A_simp = A_simp_partial + A_trap_last
                 
                 if A_trap is None:
                     st.error("❌ Erro no cálculo pela regra do Trapézio")
-                if A_simp is None:
-                    st.error("❌ Erro no cálculo pela regra de Simpson (verifique se há número par de intervalos)")
                 
-                if A_trap and A_simp:
+                if not simpson_applicable and A_simp is not None:
+                    st.info("ℹ️ **Nota:** Como há número ímpar de intervalos, foi usado Simpson nos primeiros intervalos e Trapézio no último intervalo (método híbrido).")
+                elif A_simp is None:
+                    st.warning("⚠️ Não foi possível calcular pela regra de Simpson (número ímpar de intervalos e método híbrido não aplicável)")
+                
+                if A_trap:
                     # Área total (dobro da meia-seção)
                     A_trap_total = 2 * A_trap
-                    A_simp_total = 2 * A_simp
                     
                     st.markdown("### ✅ Resultados")
                     
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1:
-                        st.metric("Área meia-seção (Trapézio)", f"{A_trap:.6f} m²")
-                    with col2:
-                        st.metric("Área total (Trapézio)", f"{A_trap_total:.6f} m²")
-                    with col3:
-                        st.metric("Área meia-seção (Simpson)", f"{A_simp:.6f} m²")
-                    with col4:
-                        st.metric("Área total (Simpson)", f"{A_simp_total:.6f} m²")
+                    if A_simp:
+                        A_simp_total = 2 * A_simp
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Área meia-seção (Trapézio)", f"{A_trap:.6f} m²")
+                        with col2:
+                            st.metric("Área total (Trapézio)", f"{A_trap_total:.6f} m²")
+                        with col3:
+                            st.metric("Área meia-seção (Simpson)", f"{A_simp:.6f} m²")
+                        with col4:
+                            st.metric("Área total (Simpson)", f"{A_simp_total:.6f} m²")
+                    else:
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Área meia-seção (Trapézio)", f"{A_trap:.6f} m²")
+                        with col2:
+                            st.metric("Área total (Trapézio)", f"{A_trap_total:.6f} m²")
                     
                     # Detalhamento dos cálculos
                     st.markdown("### 📝 Detalhamento dos Cálculos")
@@ -927,30 +961,49 @@ h = {h:.2f} m
                     """)
                     
                     st.markdown("#### Regra de Simpson Repetida")
-                    if (len(X) - 1) % 2 == 0:
-                        st.code(f"""
+                    if A_simp:
+                        if simpson_applicable:
+                            # Simpson aplicado diretamente
+                            st.code(f"""
 h = {h:.2f} m
-Área = (h/3) × [y₀ + 4y₁ + 2y₂ + 4y₃ + 2y₄ + 4y₅ + 2y₆ + y₇]
-     = ({h:.2f}/3) × [{Y[0]:.2f} + 4({Y[1]:.2f}) + 2({Y[2]:.2f}) + 4({Y[3]:.2f}) + 2({Y[4]:.2f}) + 4({Y[5]:.2f}) + 2({Y[6]:.2f}) + {Y[7]:.2f}]
+Área = (h/3) × [y₀ + 4y₁ + 2y₂ + 4y₃ + ... + yₙ]
      = {A_simp:.6f} m² (meia-seção)
-     = {A_simp_total:.6f} m² (seção completa)
-                        """)
+     = {2 * A_simp:.6f} m² (seção completa)
+                            """)
+                        else:
+                            # Método híbrido usado
+                            st.code(f"""
+Método Híbrido (Simpson + Trapézio):
+- Simpson nos primeiros {len(X)-1} pontos: {A_simp_partial:.6f} m²
+- Trapézio no último intervalo: {A_trap_last:.6f} m²
+- Total: {A_simp:.6f} m² (meia-seção)
+- Total: {2 * A_simp:.6f} m² (seção completa)
+                            """)
                     else:
-                        st.warning("⚠️ Simpson requer número par de intervalos")
+                        st.warning("⚠️ Simpson não pôde ser aplicado (número ímpar de intervalos)")
                     
                     # Comparação
-                    st.markdown("### 📊 Comparação dos Métodos")
-                    diff = abs(A_trap_total - A_simp_total)
-                    st.info(f"""
-                    **Diferença entre os métodos:** {diff:.6f} m²
-                    
-                    A regra de Simpson geralmente fornece resultados mais precisos (erro O(h⁴)) 
-                    do que a regra do Trapézio (erro O(h²)), especialmente quando a função 
-                    é suave e o número de intervalos é adequado.
-                    
-                    **Área da seção mais larga do navio:**
-                    - Pelo método do Trapézio: **{A_trap_total:.4f} m²**
-                    - Pelo método de Simpson: **{A_simp_total:.4f} m²**
-                    """)
+                    if A_simp:
+                        st.markdown("### 📊 Comparação dos Métodos")
+                        diff = abs(A_trap_total - (2 * A_simp))
+                        st.info(f"""
+                        **Diferença entre os métodos:** {diff:.6f} m²
+                        
+                        A regra de Simpson geralmente fornece resultados mais precisos (erro O(h⁴)) 
+                        do que a regra do Trapézio (erro O(h²)), especialmente quando a função 
+                        é suave e o número de intervalos é adequado.
+                        
+                        **Área da seção mais larga do navio:**
+                        - Pelo método do Trapézio: **{A_trap_total:.4f} m²**
+                        - Pelo método de Simpson: **{2 * A_simp:.4f} m²**
+                        """)
+                    else:
+                        st.markdown("### 📊 Resultado")
+                        st.info(f"""
+                        **Área da seção mais larga do navio:**
+                        - Pelo método do Trapézio: **{A_trap_total:.4f} m²**
+                        
+                        *Nota: Simpson não pôde ser aplicado devido ao número ímpar de intervalos.*
+                        """)
             except Exception as e:
                 st.error(f"❌ Erro: {e}")
