@@ -793,6 +793,10 @@ if page == "4️⃣ Questão 4 — Integração Numérica":
     
     use_def = st.checkbox("✅ Usar dados do enunciado", value=True)
     
+    # Inicializar variáveis
+    X = None
+    Y = None
+    
     if use_def:
         # Dados corretos: 8 pontos (0 a 7), espaçamento de 0.4m
         X = [0, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8]
@@ -803,14 +807,18 @@ if page == "4️⃣ Questão 4 — Integração Numérica":
                           "0 0.4 0.8 1.2 1.6 2.0 2.4 2.8")
         ys = st.text_input("Valores de y (meia-largura) separados por espaço", 
                           "3.00 2.92 2.75 2.52 2.30 1.84 0.92 0.00")
-        try:
-            X = list(map(float, xs.split()))
-            Y = list(map(float, ys.split()))
-        except:
-            X = Y = None
-            st.error("Erro ao processar os dados")
+        if xs and ys:
+            try:
+                X = list(map(float, xs.split()))
+                Y = list(map(float, ys.split()))
+                if len(X) != len(Y):
+                    st.error("⚠️ Os vetores X e Y devem ter o mesmo tamanho!")
+                    X = Y = None
+            except Exception as e:
+                X = Y = None
+                st.error(f"❌ Erro ao processar os dados: {e}")
     
-    if X and Y:
+    if X and Y and len(X) == len(Y):
         # Visualização
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.barh(X, Y, height=0.3, alpha=0.6, color='blue', label='Meia-largura')
@@ -866,79 +874,83 @@ if page == "4️⃣ Questão 4 — Integração Numérica":
     st.markdown("---")
     st.subheader("🧮 Passo 3: Cálculo da Área")
     
-    if st.button("🚀 Calcular Área", type="primary") and X and Y:
-        try:
-            # Verificar espaçamento uniforme
-            h = X[1] - X[0]
-            is_uniform = all(abs(X[i+1] - X[i] - h) < 1e-6 for i in range(len(X)-1))
-            
-            if not is_uniform:
-                st.warning("⚠️ Espaçamento não uniforme detectado. Os métodos podem não funcionar corretamente.")
-            
-            # Calcular área da meia-seção
-            A_trap = trapezio_repetido(X, Y)
-            A_simp = simpson_repetido(X, Y)
-            
-            if A_trap is None:
-                st.error("❌ Erro no cálculo pela regra do Trapézio")
-            if A_simp is None:
-                st.error("❌ Erro no cálculo pela regra de Simpson (verifique se há número par de intervalos)")
-            
-            if A_trap and A_simp:
-                # Área total (dobro da meia-seção)
-                A_trap_total = 2 * A_trap
-                A_simp_total = 2 * A_simp
+    if st.button("🚀 Calcular Área", type="primary"):
+        if not X or not Y:
+            st.error("⚠️ Por favor, defina os dados do problema primeiro (use os dados do enunciado ou insira valores manualmente).")
+        elif len(X) != len(Y):
+            st.error("⚠️ Os vetores X e Y devem ter o mesmo tamanho!")
+        else:
+            try:
+                # Verificar espaçamento uniforme
+                h = X[1] - X[0]
+                is_uniform = all(abs(X[i+1] - X[i] - h) < 1e-6 for i in range(len(X)-1))
                 
-                st.markdown("### ✅ Resultados")
+                if not is_uniform:
+                    st.warning("⚠️ Espaçamento não uniforme detectado. Os métodos podem não funcionar corretamente.")
                 
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("Área meia-seção (Trapézio)", f"{A_trap:.6f} m²")
-                with col2:
-                    st.metric("Área total (Trapézio)", f"{A_trap_total:.6f} m²")
-                with col3:
-                    st.metric("Área meia-seção (Simpson)", f"{A_simp:.6f} m²")
-                with col4:
-                    st.metric("Área total (Simpson)", f"{A_simp_total:.6f} m²")
+                # Calcular área da meia-seção
+                A_trap = trapezio_repetido(X, Y)
+                A_simp = simpson_repetido(X, Y)
                 
-                # Detalhamento dos cálculos
-                st.markdown("### 📝 Detalhamento dos Cálculos")
+                if A_trap is None:
+                    st.error("❌ Erro no cálculo pela regra do Trapézio")
+                if A_simp is None:
+                    st.error("❌ Erro no cálculo pela regra de Simpson (verifique se há número par de intervalos)")
                 
-                st.markdown("#### Regra do Trapézio Repetida")
-                st.code(f"""
+                if A_trap and A_simp:
+                    # Área total (dobro da meia-seção)
+                    A_trap_total = 2 * A_trap
+                    A_simp_total = 2 * A_simp
+                    
+                    st.markdown("### ✅ Resultados")
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Área meia-seção (Trapézio)", f"{A_trap:.6f} m²")
+                    with col2:
+                        st.metric("Área total (Trapézio)", f"{A_trap_total:.6f} m²")
+                    with col3:
+                        st.metric("Área meia-seção (Simpson)", f"{A_simp:.6f} m²")
+                    with col4:
+                        st.metric("Área total (Simpson)", f"{A_simp_total:.6f} m²")
+                    
+                    # Detalhamento dos cálculos
+                    st.markdown("### 📝 Detalhamento dos Cálculos")
+                    
+                    st.markdown("#### Regra do Trapézio Repetida")
+                    st.code(f"""
 h = {h:.2f} m
 Área = (h/2) × [y₀ + 2(y₁ + y₂ + ... + yₙ₋₁) + yₙ]
      = ({h:.2f}/2) × [{Y[0]:.2f} + 2({sum(Y[1:-1]):.2f}) + {Y[-1]:.2f}]
      = {A_trap:.6f} m² (meia-seção)
      = {A_trap_total:.6f} m² (seção completa)
-                """)
-                
-                st.markdown("#### Regra de Simpson Repetida")
-                if (len(X) - 1) % 2 == 0:
-                    st.code(f"""
+                    """)
+                    
+                    st.markdown("#### Regra de Simpson Repetida")
+                    if (len(X) - 1) % 2 == 0:
+                        st.code(f"""
 h = {h:.2f} m
 Área = (h/3) × [y₀ + 4y₁ + 2y₂ + 4y₃ + 2y₄ + 4y₅ + 2y₆ + y₇]
      = ({h:.2f}/3) × [{Y[0]:.2f} + 4({Y[1]:.2f}) + 2({Y[2]:.2f}) + 4({Y[3]:.2f}) + 2({Y[4]:.2f}) + 4({Y[5]:.2f}) + 2({Y[6]:.2f}) + {Y[7]:.2f}]
      = {A_simp:.6f} m² (meia-seção)
      = {A_simp_total:.6f} m² (seção completa)
+                        """)
+                    else:
+                        st.warning("⚠️ Simpson requer número par de intervalos")
+                    
+                    # Comparação
+                    st.markdown("### 📊 Comparação dos Métodos")
+                    diff = abs(A_trap_total - A_simp_total)
+                    st.info(f"""
+                    **Diferença entre os métodos:** {diff:.6f} m²
+                    
+                    A regra de Simpson geralmente fornece resultados mais precisos (erro O(h⁴)) 
+                    do que a regra do Trapézio (erro O(h²)), especialmente quando a função 
+                    é suave e o número de intervalos é adequado.
+                    
+                    **Área da seção mais larga do navio:**
+                    - Pelo método do Trapézio: **{A_trap_total:.4f} m²**
+                    - Pelo método de Simpson: **{A_simp_total:.4f} m²**
                     """)
-                else:
-                    st.warning("⚠️ Simpson requer número par de intervalos")
-                
-                # Comparação
-                st.markdown("### 📊 Comparação dos Métodos")
-                diff = abs(A_trap_total - A_simp_total)
-                st.info(f"""
-                **Diferença entre os métodos:** {diff:.6f} m²
-                
-                A regra de Simpson geralmente fornece resultados mais precisos (erro O(h⁴)) 
-                do que a regra do Trapézio (erro O(h²)), especialmente quando a função 
-                é suave e o número de intervalos é adequado.
-                
-                **Área da seção mais larga do navio:**
-                - Pelo método do Trapézio: **{A_trap_total:.4f} m²**
-                - Pelo método de Simpson: **{A_simp_total:.4f} m²**
-                """)
-        
-        except Exception as e:
-            st.error(f"❌ Erro: {e}")
+            except Exception as e:
+                st.error(f"❌ Erro: {e}")
