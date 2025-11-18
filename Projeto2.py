@@ -4,39 +4,58 @@ import sys
 #  MÉTODO DIRETO – ELIMINAÇÃO DE GAUSS (TÓPICO 1 QUESTÃO 2)
 # ============================================================
 
-def gauss_elimination(A, b):
+def gauss_elimination(A, b, return_steps=False):
+    """
+    Eliminação de Gauss com pivoteamento parcial.
+    Se return_steps=True, retorna também o histórico dos passos.
+    """
     n = len(b)
     A = [row[:] for row in A]  # cópia defensiva
     b = b[:]
+    steps = [] if return_steps else None
 
     try:
         for k in range(n):
             # Pivoteamento parcial
             max_row = max(range(k, n), key=lambda i: abs(A[i][k]))
-            A[k], A[max_row] = A[max_row], A[k]
-            b[k], b[max_row] = b[max_row], b[k]
+            if max_row != k:
+                A[k], A[max_row] = A[max_row], A[k]
+                b[k], b[max_row] = b[max_row], b[k]
+                if return_steps:
+                    steps.append(f"Passo {k+1}: Troca de linhas {k+1} ↔ {max_row+1} (pivoteamento)")
 
             if A[k][k] == 0:
                 raise ValueError("Sistema singular.")
 
             # Eliminação
+            if return_steps:
+                steps.append(f"Passo {k+1}: Eliminação da coluna {k+1}")
+            
             for i in range(k+1, n):
                 m = A[i][k] / A[k][k]
+                if return_steps:
+                    steps.append(f"  → Linha {i+1} = Linha {i+1} - ({m:.4f}) × Linha {k+1}")
                 for j in range(k, n):
                     A[i][j] -= m * A[k][j]
                 b[i] -= m * b[k]
 
         # Substituição regressiva
         x = [0] * n
+        if return_steps:
+            steps.append("Substituição regressiva:")
         for i in range(n-1, -1, -1):
             s = sum(A[i][j] * x[j] for j in range(i+1, n))
             x[i] = (b[i] - s) / A[i][i]
+            if return_steps:
+                steps.append(f"  x{i+1} = ({b[i]:.4f} - {s:.4f}) / {A[i][i]:.4f} = {x[i]:.4f}")
 
+        if return_steps:
+            return x, steps
         return x
 
     except Exception as e:
         print("Erro na eliminação de Gauss:", e)
-        return None
+        return (None, steps) if return_steps else None
 
 
 def modulo_topico1_questao2():
@@ -171,6 +190,33 @@ def lagrange_interp(x, y, x0):
     except:
         return None
     return total
+
+
+def newton_interp(x, y, x0):
+    """
+    Interpolação de Newton usando diferenças divididas.
+    Retorna o valor interpolado e as diferenças divididas para visualização.
+    """
+    try:
+        n = len(x)
+        # Calcular diferenças divididas
+        dd = [y[i] for i in range(n)]  # Primeira ordem
+        
+        # Construir tabela de diferenças divididas
+        for j in range(1, n):
+            for i in range(n-1, j-1, -1):
+                dd[i] = (dd[i] - dd[i-1]) / (x[i] - x[i-j])
+        
+        # Calcular valor interpolado
+        result = dd[0]
+        produto = 1.0
+        for i in range(1, n):
+            produto *= (x0 - x[i-1])
+            result += dd[i] * produto
+        
+        return result, dd
+    except:
+        return None, None
 
 
 def modulo_topico3_questao2():
