@@ -65,6 +65,17 @@ st.markdown(DARK_CSS, unsafe_allow_html=True)
 # Helper functions
 # ===========================
 
+def is_diagonally_dominant(A):
+    """Verifica se a matriz é diagonalmente dominante"""
+    A = np.array(A, dtype=float)
+    n = len(A)
+    for i in range(n):
+        diag = abs(A[i, i])
+        soma = sum(abs(A[i, j]) for j in range(n) if j != i)
+        if diag <= soma:
+            return False, i+1
+    return True, None
+
 def gauss_seidel_with_history(A, b, x0=None, tol=1e-4, max_iter=1000):
     A = np.array(A, dtype=float)
     b = np.array(b, dtype=float)
@@ -83,62 +94,73 @@ def gauss_seidel_with_history(A, b, x0=None, tol=1e-4, max_iter=1000):
             x[i] = (b[i] - s1 - s2) / A[i, i]
         err = np.max(np.abs(x - x_old))
         history.append((k, x.copy(), err))
+        
+        # Verificar se está divergindo (valores muito grandes)
+        if np.any(np.abs(x) > 1e10):
+            return x, history, k, True  # Retorna flag de divergência
+        
         if err < tol:
-            return x, history, k
-    return x, history, max_iter
+            return x, history, k, False
+    return x, history, max_iter, False
 
 
 def circuit_system():
     """
     Sistema do circuito elétrico baseado na descrição da imagem.
     Sistema 5x5 com equações de Kirchhoff.
+    
+    Convenção:
+    - Correntes de malha (i1...i5) no sentido horário
+    - Fontes: 16V e 14V (topo) para a direita; 12V e 10V (esquerda) para cima; 30V (base) para a esquerda
+    - Em KVL, fonte conta +V no termo independente quando é elevação ao percorrer a malha no sentido horário
     """
-    # Sistema correto baseado na descrição da imagem
+    # Sistema corrigido
     A = [
-        [9.5,  -2.5,  0.0, -2.0,  0.0],
-        [-2.5, 10.5,  0.0, -3.0, -8.0],
-        [0.0,   0.0, 15.5,  0.0, -4.0],
-        [-2.0, -3.0,  0.0,  7.0, -3.0],
-        [0.0,  -8.0, -4.0, -3.0, 12.0],
+        [ 9.5, -2.5,  0.0, -2.0,  0.0],   # Malha 1
+        [-2.5, 11.0, -3.5,  0.0, -5.0],   # Malha 2 (corrigidos: a22=11.0, a23=-3.5, a24=0, a25=-5.0)
+        [ 0.0, -3.5, 15.5,  0.0, -4.0],   # Malha 3 (a32 = -3.5)
+        [-2.0,  0.0,  0.0,  7.0, -3.0],   # Malha 4 (a42 = 0)
+        [ 0.0, -5.0, -4.0, -3.0, 12.0],   # Malha 5
     ]
-    b = [-12.0, -16.0, -14.0, -10.0, -30.0]
+    b = [12.0, 16.0, 14.0, 10.0, 30.0]  # fontes como elevação no sentido da malha
     
     derivation = [
-        "**Malha 1 (i1):** Aplicando KVL na malha 1:",
+        "**Malha 1 (i1):** Aplicando KVL na malha 1 (sentido horário):",
         "  - Resistências: 5Ω + 2.5Ω + 2Ω = 9.5Ω (diagonal)",
         "  - Resistência compartilhada com i2: -2.5Ω",
         "  - Resistência compartilhada com i4: -2Ω",
-        "  - Fonte de tensão: +12V → -12V (lado direito)",
-        "  **Equação:** 9.5i₁ - 2.5i₂ - 2i₄ = -12",
+        "  - Fonte de tensão: +12V (elevação no sentido horário)",
+        "  **Equação:** 9.5i₁ - 2.5i₂ - 2i₄ = 12",
         "",
-        "**Malha 2 (i2):** Aplicando KVL na malha 2:",
-        "  - Resistências: 2.5Ω + 5Ω + 3Ω = 10.5Ω (diagonal)",
+        "**Malha 2 (i2):** Aplicando KVL na malha 2 (sentido horário):",
+        "  - Resistências: 2.5Ω + 5Ω + 3.5Ω = 11.0Ω (diagonal)",
         "  - Resistência compartilhada com i1: -2.5Ω",
-        "  - Resistência compartilhada com i4 e i5: -3Ω",
-        "  - Resistência compartilhada com i5: -5Ω (mas já incluído no 3Ω)",
-        "  - Fonte de tensão: +16V → -16V",
-        "  **Equação:** -2.5i₁ + 10.5i₂ - 3i₄ - 8i₅ = -16",
+        "  - Resistência compartilhada com i3: -3.5Ω",
+        "  - Resistência compartilhada com i5: -5.0Ω",
+        "  - Fonte de tensão: +16V (elevação no sentido horário)",
+        "  **Equação:** -2.5i₁ + 11.0i₂ - 3.5i₃ - 5.0i₅ = 16",
         "",
-        "**Malha 3 (i3):** Aplicando KVL na malha 3:",
+        "**Malha 3 (i3):** Aplicando KVL na malha 3 (sentido horário):",
         "  - Resistências: 3.5Ω + 8Ω + 4Ω = 15.5Ω (diagonal)",
+        "  - Resistência compartilhada com i2: -3.5Ω",
         "  - Resistência compartilhada com i5: -4Ω",
-        "  - Fonte de tensão: +14V → -14V",
-        "  **Equação:** 15.5i₃ - 4i₅ = -14",
+        "  - Fonte de tensão: +14V (elevação no sentido horário)",
+        "  **Equação:** -3.5i₂ + 15.5i₃ - 4i₅ = 14",
         "",
-        "**Malha 4 (i4):** Aplicando KVL na malha 4:",
+        "**Malha 4 (i4):** Aplicando KVL na malha 4 (sentido horário):",
         "  - Resistências: 2Ω + 3Ω + 2Ω = 7Ω (diagonal)",
         "  - Resistência compartilhada com i1: -2Ω",
-        "  - Resistência compartilhada com i2 e i5: -3Ω",
-        "  - Fonte de tensão: +10V → -10V",
-        "  **Equação:** -2i₁ - 3i₂ + 7i₄ - 3i₅ = -10",
+        "  - Resistência compartilhada com i5: -3Ω",
+        "  - Fonte de tensão: +10V (elevação no sentido horário)",
+        "  **Equação:** -2i₁ + 7i₄ - 3i₅ = 10",
         "",
-        "**Malha 5 (i5):** Aplicando KVL na malha 5:",
+        "**Malha 5 (i5):** Aplicando KVL na malha 5 (sentido horário):",
         "  - Resistências: 5Ω + 3Ω + 4Ω = 12Ω (diagonal)",
-        "  - Resistência compartilhada com i2: -5Ω - 3Ω = -8Ω",
+        "  - Resistência compartilhada com i2: -5.0Ω",
         "  - Resistência compartilhada com i3: -4Ω",
         "  - Resistência compartilhada com i4: -3Ω",
-        "  - Fonte de tensão: +30V → -30V",
-        "  **Equação:** -8i₂ - 4i₃ - 3i₄ + 12i₅ = -30",
+        "  - Fonte de tensão: +30V (elevação no sentido horário)",
+        "  **Equação:** -5.0i₂ - 4i₃ - 3i₄ + 12i₅ = 30",
     ]
     return A, b, derivation
 
@@ -493,73 +515,143 @@ if page == "2️⃣ Questão 2 — Circuito Elétrico (Gauss-Seidel)":
             st.write("Defina aproximação inicial manualmente:")
             x0 = [st.number_input(f"i{j+1}⁽⁰⁾", value=0.0, key=f"ch_i{j}") for j in range(5)]
 
+    # Verificação de dominância diagonal
+    st.markdown("---")
+    st.subheader("🔍 Verificação de Convergência")
+    is_dom, linha_problema = is_diagonally_dominant(A_circ)
+    if is_dom:
+        st.success("✅ A matriz é diagonalmente dominante. O método de Gauss-Seidel deve convergir.")
+    else:
+        st.warning(f"⚠️ **Atenção:** A matriz NÃO é diagonalmente dominante (linha {linha_problema} não satisfaz a condição). O método de Gauss-Seidel pode não convergir para este sistema.")
+        st.info("💡 **Solução alternativa:** Se o método não convergir, será usada a eliminação de Gauss para obter a solução exata.")
+    
     # Resolução
     if st.button("🚀 Resolver pelo Método de Gauss-Seidel", type="primary"):
         try:
-            sol, hist, its = gauss_seidel_with_history(A_circ, b_circ, x0=x0, tol=tol, max_iter=int(max_it))
+            sol, hist, its, divergiu = gauss_seidel_with_history(A_circ, b_circ, x0=x0, tol=tol, max_iter=int(max_it))
             
-            if its >= max_it and hist[-1][2] >= tol:
-                st.warning(f"⚠️ Método não convergiu em {max_it} iterações. Erro final: {hist[-1][2]:.6f}")
+            # Se divergiu ou não convergiu, usar eliminação de Gauss
+            usar_gauss = False
+            if divergiu or (its >= max_it and hist[-1][2] >= tol):
+                st.error(f"❌ **Método de Gauss-Seidel não convergiu!**")
+                if divergiu:
+                    st.error("O método está divergindo (valores crescendo exponencialmente).")
+                else:
+                    st.warning(f"⚠️ Não convergiu em {max_it} iterações. Erro final: {hist[-1][2]:.6e}")
+                
+                st.info("🔄 **Usando eliminação de Gauss para obter a solução exata...**")
+                usar_gauss = True
+                sol_gauss = gauss_elimination(A_circ, b_circ)
+                if sol_gauss is not None:
+                    sol = sol_gauss
+                    st.success("✅ Solução obtida pelo método de eliminação de Gauss!")
+                else:
+                    st.error("❌ Erro ao resolver pelo método de Gauss.")
+                    sol = None
             else:
                 st.success(f"✅ Convergência alcançada em {its} iterações!")
             
-            # Resultados
-            st.markdown("### ✅ Solução Final (Correntes)")
-            df_sol = pd.DataFrame({
-                "Corrente": [f"i{j+1}" for j in range(len(sol))],
-                "Valor (A)": [f"{s:.6f}" for s in sol],
-                "Valor (mA)": [f"{s*1000:.2f}" for s in sol]
-            })
-            st.dataframe(df_sol, use_container_width=True)
-            
-            # Histórico de iterações
-            st.markdown("### 📊 Histórico de Convergência")
-            hist_df = pd.DataFrame([{
-                "Iteração": h[0],
-                **{f"i{j+1}": f"{h[1][j]:.6f}" for j in range(len(sol))},
-                "Erro": f"{h[2]:.6f}"
-            } for h in hist])
-            
-            st.dataframe(hist_df.tail(30).set_index("Iteração"), use_container_width=True)
-            
-            # Gráfico de convergência
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-            
-            # Gráfico das correntes
-            for j in range(len(sol)):
-                ax1.plot([h[0] for h in hist], [h[1][j] for h in hist], 
-                        label=f"i{j+1}", marker='o', markersize=3)
-            ax1.set_xlabel('Iteração')
-            ax1.set_ylabel('Corrente (A)')
-            ax1.set_title('Convergência das Correntes')
-            ax1.legend()
-            ax1.grid(True, alpha=0.3)
-            
-            # Gráfico do erro
-            ax2.semilogy([h[0] for h in hist], [h[2] for h in hist], 'r-', linewidth=2)
-            ax2.axhline(y=tol, color='g', linestyle='--', label=f'Tolerância ({tol})')
-            ax2.set_xlabel('Iteração')
-            ax2.set_ylabel('Erro (escala log)')
-            ax2.set_title('Convergência do Erro')
-            ax2.legend()
-            ax2.grid(True, alpha=0.3)
-            
-            plt.tight_layout()
-            st.pyplot(fig)
+            # Verificar se temos solução válida
+            if sol is None:
+                st.error("❌ Não foi possível obter uma solução válida.")
+            else:
+                # Resultados
+                st.markdown("### ✅ Solução Final (Correntes)")
+                df_sol = pd.DataFrame({
+                    "Corrente": [f"i{j+1}" for j in range(len(sol))],
+                    "Valor (A)": [f"{s:.6f}" for s in sol],
+                    "Valor (mA)": [f"{s*1000:.2f}" for s in sol]
+                })
+                st.dataframe(df_sol, use_container_width=True)
+                
+                # Verificação do resíduo
+                A_np = np.array(A_circ)
+                b_np = np.array(b_circ)
+                sol_np = np.array(sol)
+                residual = np.dot(A_np, sol_np) - b_np
+                st.markdown("### 🔍 Verificação da Solução")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Norma do resíduo", f"{np.linalg.norm(residual):.2e}")
+                with col2:
+                    st.metric("Resíduo máximo", f"{np.max(np.abs(residual)):.2e}")
+                
+                # Histórico de iterações (só mostrar se não usou Gauss)
+                if not usar_gauss:
+                    st.markdown("### 📊 Histórico de Convergência")
+                    hist_df = pd.DataFrame([{
+                        "Iteração": h[0],
+                        **{f"i{j+1}": f"{h[1][j]:.6f}" for j in range(len(sol))},
+                        "Erro": f"{h[2]:.6e}"
+                    } for h in hist])
+                    
+                    st.dataframe(hist_df.tail(30).set_index("Iteração"), use_container_width=True)
+                    
+                    # Gráfico de convergência
+                    st.markdown("### 📈 Gráficos de Convergência")
+                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+                    
+                    # Gráfico das correntes
+                    for j in range(len(sol)):
+                        valores = [h[1][j] for h in hist]
+                        # Limitar valores para visualização se estiverem muito grandes
+                        if max(abs(v) for v in valores) > 1e6:
+                            ax1.text(0.5, 0.5, 'Valores divergindo\ndemais para visualizar', 
+                                    transform=ax1.transAxes, ha='center', va='center', fontsize=12)
+                        else:
+                            ax1.plot([h[0] for h in hist], valores, 
+                                    label=f"i{j+1}", marker='o', markersize=3)
+                    ax1.set_xlabel('Iteração')
+                    ax1.set_ylabel('Corrente (A)')
+                    ax1.set_title('Convergência das Correntes')
+                    ax1.legend()
+                    ax1.grid(True, alpha=0.3)
+                    
+                    # Gráfico do erro
+                    erros = [h[2] for h in hist]
+                    if max(erros) > 1e6:
+                        ax2.text(0.5, 0.5, 'Erro divergindo\ndemais para visualizar', 
+                                transform=ax2.transAxes, ha='center', va='center', fontsize=12)
+                    else:
+                        ax2.semilogy([h[0] for h in hist], erros, 'r-', linewidth=2)
+                        ax2.axhline(y=tol, color='g', linestyle='--', label=f'Tolerância ({tol})')
+                    ax2.set_xlabel('Iteração')
+                    ax2.set_ylabel('Erro (escala log)')
+                    ax2.set_title('Convergência do Erro')
+                    ax2.legend()
+                    ax2.grid(True, alpha=0.3)
+                    
+                    plt.tight_layout()
+                    st.pyplot(fig)
 
-            # Interpretação
-            st.markdown("### 💡 Interpretação dos Resultados")
-            st.info(f"""
-            As correntes nas malhas do circuito são:
-            - **i₁ = {sol[0]:.4f} A** ({sol[0]*1000:.2f} mA)
-            - **i₂ = {sol[1]:.4f} A** ({sol[1]*1000:.2f} mA)
-            - **i₃ = {sol[2]:.4f} A** ({sol[2]*1000:.2f} mA)
-            - **i₄ = {sol[3]:.4f} A** ({sol[3]*1000:.2f} mA)
-            - **i₅ = {sol[4]:.4f} A** ({sol[4]*1000:.2f} mA)
-            
-            **Iterações necessárias:** {its}
-            **Erro final:** {hist[-1][2]:.6f}
-            """)
+                # Interpretação
+                st.markdown("### 💡 Interpretação dos Resultados")
+                if usar_gauss:
+                    st.info(f"""
+                    **Solução obtida pelo método de eliminação de Gauss:**
+                    
+                    As correntes nas malhas do circuito são:
+                    - **i₁ = {sol[0]:.4f} A** ({sol[0]*1000:.2f} mA)
+                    - **i₂ = {sol[1]:.4f} A** ({sol[1]*1000:.2f} mA)
+                    - **i₃ = {sol[2]:.4f} A** ({sol[2]*1000:.2f} mA)
+                    - **i₄ = {sol[3]:.4f} A** ({sol[3]*1000:.2f} mA)
+                    - **i₅ = {sol[4]:.4f} A** ({sol[4]*1000:.2f} mA)
+                    
+                    **Nota:** O método de Gauss-Seidel não convergiu porque a matriz não é diagonalmente dominante.
+                    A eliminação de Gauss fornece a solução exata do sistema.
+                    """)
+                else:
+                    st.info(f"""
+                    As correntes nas malhas do circuito são:
+                    - **i₁ = {sol[0]:.4f} A** ({sol[0]*1000:.2f} mA)
+                    - **i₂ = {sol[1]:.4f} A** ({sol[1]*1000:.2f} mA)
+                    - **i₃ = {sol[2]:.4f} A** ({sol[2]*1000:.2f} mA)
+                    - **i₄ = {sol[3]:.4f} A** ({sol[3]*1000:.2f} mA)
+                    - **i₅ = {sol[4]:.4f} A** ({sol[4]*1000:.2f} mA)
+                    
+                    **Iterações necessárias:** {its}
+                    **Erro final:** {hist[-1][2]:.6e}
+                    """)
             
         except Exception as e:
             st.error(f"❌ Erro ao executar: {e}")
