@@ -294,40 +294,37 @@ if page == "1️⃣ Questão 1 — Sistemas Lineares (Gauss)":
     st.markdown("---")
     st.subheader("📊 Passo 2: Dados do Problema")
     
-    use_def = st.checkbox("✅ Usar valores do enunciado", value=True)
+    use_def = st.checkbox("✅ Usar valores do enunciado como padrão", value=True)
+    
+    # Valores padrão do enunciado
+    A_default = [[15.0, 17.0, 19.0],
+                 [0.30, 0.40, 0.55],
+                 [1.0, 1.2, 1.5]]
+    b_default = [3890.0, 95.0, 282.0]
     
     if use_def:
-        # Valores corretos: materiais em gramas, disponibilidade convertida para gramas
-        A = [[15.0, 17.0, 19.0],
-             [0.30, 0.40, 0.55],
-             [1.0, 1.2, 1.5]]
-        b = [3890.0, 95.0, 282.0]
-        
-        st.success("✅ Usando dados do enunciado (valores em gramas)")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("**Matriz A (coeficientes):**")
-            df_A = pd.DataFrame(A, 
-                               columns=["Componente 1", "Componente 2", "Componente 3"],
-                               index=["Metal (g)", "Plástico (g)", "Borracha (g)"])
-            st.dataframe(df_A, use_container_width=True)
-        
-        with col2:
-            st.write("**Vetor b (disponibilidade em gramas):**")
-            df_b = pd.DataFrame({"Disponível (g)": b},
-                               index=["Metal", "Plástico", "Borracha"])
-            st.dataframe(df_b, use_container_width=True)
-    else:
-        st.write("Digite os valores manualmente:")
-        A = []
-        for i in range(3):
-            row = st.text_input(f"Linha {i+1} da matriz A (3 valores separados por espaço)", 
-                              key=f"t1_a{i}")
-            if row:
-                A.append(list(map(float, row.split())))
-        b_str = st.text_input("Vetor b (3 valores separados por espaço)", key='t1_b')
-        b = list(map(float, b_str.split())) if b_str else None
+        st.info("💡 **Você pode editar os valores diretamente nas tabelas abaixo!**")
+    
+    # Editor de matriz editável
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.write("**Matriz A (coeficientes) - Edite os valores diretamente:**")
+        df_A = pd.DataFrame(
+            A_default,
+            columns=["Componente 1", "Componente 2", "Componente 3"],
+            index=["Metal (g)", "Plástico (g)", "Borracha (g)"]
+        )
+        edited_A = st.data_editor(df_A, use_container_width=True, num_rows="fixed")
+        A = edited_A.values.tolist()
+    
+    with col2:
+        st.write("**Vetor b (disponibilidade) - Edite os valores diretamente:**")
+        df_b = pd.DataFrame(
+            {"Disponível (g)": b_default},
+            index=["Metal", "Plástico", "Borracha"]
+        )
+        edited_b = st.data_editor(df_b, use_container_width=True, num_rows="fixed")
+        b = edited_b["Disponível (g)"].tolist()
 
     # Resolução
     st.markdown("---")
@@ -351,8 +348,9 @@ if page == "1️⃣ Questão 1 — Sistemas Lineares (Gauss)":
     
     if st.button("🚀 Resolver Sistema", type="primary"):
         try:
-            if not use_def and (not A or not b):
-                st.error("⚠️ Por favor, preencha todos os valores ou use os dados do enunciado.")
+            # Validar dados
+            if not A or not b or len(A) != 3 or len(b) != 3:
+                st.error("⚠️ Por favor, preencha todos os valores da matriz A (3x3) e do vetor b (3 valores).")
             else:
                 if show_steps:
                     sol, steps = gauss_elimination(A, b, return_steps=True)
@@ -462,19 +460,23 @@ if page == "2️⃣ Questão 2 — Circuito Elétrico (Gauss-Seidel)":
         for line in deriv:
             st.markdown(line)
     
+    st.info("💡 **Você pode editar os valores diretamente nas tabelas abaixo!**")
+    
     col1, col2 = st.columns([2, 1])
     with col1:
-        st.write("**Matriz A (coeficientes do sistema):**")
+        st.write("**Matriz A (coeficientes do sistema) - Edite os valores diretamente:**")
         df_A = pd.DataFrame(A_circ, 
                            columns=[f"i{j+1}" for j in range(5)],
                            index=[f"Malha {j+1}" for j in range(5)])
-        st.dataframe(df_A, use_container_width=True)
+        edited_A = st.data_editor(df_A, use_container_width=True, num_rows="fixed")
+        A_circ = edited_A.values.tolist()
     
     with col2:
-        st.write("**Vetor b (fontes de tensão):**")
+        st.write("**Vetor b (fontes de tensão) - Edite os valores diretamente:**")
         df_b = pd.DataFrame({"Tensão (V)": b_circ},
                            index=[f"Malha {j+1}" for j in range(5)])
-        st.dataframe(df_b, use_container_width=True)
+        edited_b = st.data_editor(df_b, use_container_width=True, num_rows="fixed")
+        b_circ = edited_b["Tensão (V)"].tolist()
     
     # Teoria do método
     st.markdown("---")
@@ -688,23 +690,40 @@ if page == "3️⃣ Questão 3 — Interpolação Polinomial":
     st.markdown("---")
     st.subheader("📊 Passo 1: Dados do Problema")
     
-    use_def = st.checkbox("✅ Usar pontos do enunciado", value=True)
+    use_def = st.checkbox("✅ Usar pontos do enunciado como padrão", value=True)
+    
+    # Valores padrão
+    X_default = [0.25, 0.75, 1.25, 1.5, 2.0]
+    Y_default = [-0.45, -0.60, 0.70, 1.88, 6.0]
     
     if use_def:
-        X = [0.25, 0.75, 1.25, 1.5, 2.0]
-        Y = [-0.45, -0.60, 0.70, 1.88, 6.0]
-        st.success("✅ Usando dados do enunciado")
-    else:
-        xs = st.text_input("Valores de x (corrente i) separados por espaço", "0.25 0.75 1.25 1.5 2.0")
-        ys = st.text_input("Valores de y (tensão V) separados por espaço", "-0.45 -0.60 0.70 1.88 6.0")
-        try:
-            X = list(map(float, xs.split()))
-            Y = list(map(float, ys.split()))
-        except:
-            X = Y = None
-            st.error("Erro ao processar os dados")
+        st.info("💡 **Você pode editar os valores diretamente na tabela abaixo!**")
     
-    if X and Y:
+    # Criar tabela editável
+    st.write("**Pontos experimentais (x, y) - Edite os valores diretamente ou adicione/remova linhas:**")
+    df_data = pd.DataFrame({
+        "Corrente i (A)": X_default,
+        "Tensão V (V)": Y_default
+    })
+    edited_data = st.data_editor(df_data, use_container_width=True, num_rows="dynamic")
+    
+    X = edited_data["Corrente i (A)"].tolist()
+    Y = edited_data["Tensão V (V)"].tolist()
+    
+    # Validar dados
+    if len(X) != len(Y) or len(X) < 2:
+        st.error("⚠️ É necessário ter pelo menos 2 pontos e os vetores X e Y devem ter o mesmo tamanho.")
+        X = Y = None
+    else:
+        # Remover valores NaN
+        valid_indices = [i for i in range(len(X)) if pd.notna(X[i]) and pd.notna(Y[i])]
+        X = [X[i] for i in valid_indices]
+        Y = [Y[i] for i in valid_indices]
+        if len(X) < 2:
+            st.error("⚠️ É necessário ter pelo menos 2 pontos válidos.")
+            X = Y = None
+    
+    if X and Y and len(X) == len(Y) and len(X) >= 2:
         # Visualização dos dados
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.scatter(X, Y, s=100, c='red', zorder=5, label='Pontos conhecidos')
@@ -715,10 +734,6 @@ if page == "3️⃣ Questão 3 — Interpolação Polinomial":
         ax.legend()
         ax.grid(True, alpha=0.3)
         st.pyplot(fig)
-        
-        # Tabela de dados
-        df_data = pd.DataFrame({"Corrente i (A)": X, "Tensão V (V)": Y})
-        st.dataframe(df_data, use_container_width=True)
     
     # Valor a interpolar
     st.markdown("---")
@@ -883,32 +898,38 @@ if page == "4️⃣ Questão 4 — Integração Numérica":
     st.markdown("---")
     st.subheader("📊 Passo 1: Dados do Problema")
     
-    use_def = st.checkbox("✅ Usar dados do enunciado", value=True)
+    use_def = st.checkbox("✅ Usar dados do enunciado como padrão", value=True)
     
-    # Inicializar variáveis
-    X = None
-    Y = None
+    # Valores padrão
+    X_default = [0, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8]
+    Y_default = [3.00, 2.92, 2.75, 2.52, 2.30, 1.84, 0.92, 0.00]
     
     if use_def:
-        # Dados corretos: 8 pontos (0 a 7), espaçamento de 0.4m
-        X = [0, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8]
-        Y = [3.00, 2.92, 2.75, 2.52, 2.30, 1.84, 0.92, 0.00]
-        st.success("✅ Usando dados do enunciado")
+        st.info("💡 **Você pode editar os valores diretamente na tabela abaixo ou adicionar/remover linhas!**")
+    
+    # Criar tabela editável
+    st.write("**Pontos (x, y) - Edite os valores diretamente ou adicione/remova linhas:**")
+    df_data = pd.DataFrame({
+        "Profundidade (m)": X_default,
+        "Meia-largura (m)": Y_default
+    })
+    edited_data = st.data_editor(df_data, use_container_width=True, num_rows="dynamic")
+    
+    X = edited_data["Profundidade (m)"].tolist()
+    Y = edited_data["Meia-largura (m)"].tolist()
+    
+    # Validar dados
+    if len(X) != len(Y) or len(X) < 2:
+        st.error("⚠️ Os vetores X e Y devem ter o mesmo tamanho e pelo menos 2 pontos!")
+        X = Y = None
     else:
-        xs = st.text_input("Valores de x (profundidade) separados por espaço", 
-                          "0 0.4 0.8 1.2 1.6 2.0 2.4 2.8")
-        ys = st.text_input("Valores de y (meia-largura) separados por espaço", 
-                          "3.00 2.92 2.75 2.52 2.30 1.84 0.92 0.00")
-        if xs and ys:
-            try:
-                X = list(map(float, xs.split()))
-                Y = list(map(float, ys.split()))
-                if len(X) != len(Y):
-                    st.error("⚠️ Os vetores X e Y devem ter o mesmo tamanho!")
-                    X = Y = None
-            except Exception as e:
-                X = Y = None
-                st.error(f"❌ Erro ao processar os dados: {e}")
+        # Remover valores NaN
+        valid_indices = [i for i in range(len(X)) if pd.notna(X[i]) and pd.notna(Y[i])]
+        X = [X[i] for i in valid_indices]
+        Y = [Y[i] for i in valid_indices]
+        if len(X) < 2:
+            st.error("⚠️ É necessário ter pelo menos 2 pontos válidos.")
+            X = Y = None
     
     if X and Y and len(X) == len(Y):
         # Visualização
